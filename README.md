@@ -11,8 +11,11 @@ It's a small supervisor built with [Effect](https://effect.website) on
   then removes itself. GitHub's recommended, most secure model.
 - Keeps **N runners** alive concurrently; when one finishes a job it's recycled with a
   fresh registration.
-- **Deregisters cleanly on Ctrl-C** so you never leave ghost runners in the GitHub UI.
-- Downloads the official `actions/runner` binary automatically, matched to your OS/arch.
+- **Deregisters on every exit**, including Ctrl-C, so a runner that dies before taking
+  a job doesn't stay behind as an offline name.
+- Downloads the official `actions/runner` binary automatically, matched to your OS/arch,
+  and rebuilds a slot when that version changes. `latest` keeps updating while the
+  process is running.
 
 ## How it works
 
@@ -22,11 +25,23 @@ It's a small supervisor built with [Effect](https://effect.website) on
                  └─ slot N ──> …                                                                     ┘
 ```
 
-Each slot runs `runOnce` in a forever-loop: it calls
+Each slot runs in a forever-loop: it calls
 `POST /orgs/{org}/actions/runners/generate-jitconfig`, gets a single-use config blob,
 launches the runner in its own working directory, and waits. The runner picks up one
-job, completes it, and exits — the loop then registers a fresh one. On shutdown, any
-idle registrations are force-deleted via the REST API.
+job, completes it, and exits — the loop deletes that registration if it is still
+present, then registers a fresh one. A 404 on delete means the runner already removed
+itself and is treated as success.
+
+The working directory is reused only while it was copied from the release currently
+selected. `RUNNER_VERSION=latest` is resolved at startup and about every 15 minutes.
+If that lookup fails, the release already in use stays. When GitHub rejects the
+running version as deprecated, runners from 2.333.0 on exit 7 and the next pass
+resolves `latest` immediately and rebuilds the slot. Unused `.bin-<version>`
+downloads are removed.
+
+If `generate-jitconfig` returns 409 because the slot's name is still registered, the
+supervisor deletes that org runner only when it is **offline and not busy**, then
+retries the create once. An online or busy runner is left alone and the cycle backs off.
 
 ## Prerequisites
 
@@ -69,7 +84,7 @@ All config is env vars (Bun auto-loads `.env`). Full list in [`.env.example`](./
 | `RUNNER_COUNT` | | `2` | Number of concurrent runners |
 | `RUNNER_LABELS` | | `self-hosted` | Extra labels (comma-separated) |
 | `RUNNER_GROUP_ID` | | `1` | Runner group (org default is `1`) |
-| `RUNNER_VERSION` | | `latest` | `actions/runner` release, or a pinned version like `2.336.0` |
+| `RUNNER_VERSION` | | `latest` | `actions/runner` release, or a pinned version like `2.336.0`. `latest` is re-resolved about every 15 minutes, and immediately after a deprecated exit. A failed lookup keeps the current release. |
 | `RUNNER_NAME_PREFIX` | | hostname | Runner name prefix; slot index is appended |
 | `RUNNERS_DIR` | | `.runners` | Where the binary + working dirs live (gitignored) |
 
