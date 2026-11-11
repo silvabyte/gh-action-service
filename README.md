@@ -82,7 +82,7 @@ All config is env vars (Bun auto-loads `.env`). Full list in [`.env.example`](./
 | `GITHUB_TOKEN` | ✅ | — | Fine-grained PAT, org "Self-hosted runners: Read and write" |
 | `GITHUB_ORG` | ✅ | — | Organization login |
 | `RUNNER_COUNT` | | `2` | Number of concurrent runners |
-| `RUNNER_LABELS` | | `self-hosted` | Extra labels (comma-separated) |
+| `RUNNER_LABELS` | | — | Extra labels (comma-separated); `self-hosted`, OS, and architecture are always added |
 | `RUNNER_GROUP_ID` | | `1` | Runner group (org default is `1`) |
 | `RUNNER_VERSION` | | `latest` | `actions/runner` release, or a pinned version like `2.336.0`. `latest` is re-resolved about every 15 minutes, and immediately after a deprecated exit. A failed lookup keeps the current release. |
 | `RUNNER_NAME_PREFIX` | | hostname | Runner name prefix; slot index is appended |
@@ -93,6 +93,12 @@ All config is env vars (Bun auto-loads `.env`). Full list in [`.env.example`](./
 That's the whole point — `git clone`, `bun install`, drop in a `.env`, `bun start`.
 Give each machine a distinct `RUNNER_NAME_PREFIX` (the hostname default already does
 this) so names don't collide across machines.
+
+JIT registrations must explicitly include every routing label. The service derives the
+standard labels from the host, such as `self-hosted,Linux,X64` or
+`self-hosted,macOS,ARM64`, and then appends `RUNNER_LABELS`. A workflow requesting
+`[self-hosted, macOS]` therefore requires this service to be running on a Mac; a runner
+name is not a routing label.
 
 ## Running it as a long-lived background service
 
