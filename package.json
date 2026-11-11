@@ -8,6 +8,7 @@
   "scripts": {
     "start": "bun run src/main.ts",
     "groups": "bun run src/groups.ts",
+    "test": "bun test",
     "typecheck": "tsc --noEmit"
   },
   "devDependencies": {

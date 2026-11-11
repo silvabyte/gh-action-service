@@ -18,7 +18,10 @@ export interface AppConfig {
   readonly labels: ReadonlyArray<string>
   /** Runner group id to place the runners in. `bun run groups` lists them; the default group is 1. */
   readonly runnerGroupId: number
-  /** actions/runner release to use, e.g. "2.320.0", or "latest" to resolve dynamically. */
+  /**
+   * actions/runner release to use, e.g. "2.320.0", or "latest".
+   * "latest" is re-resolved while the process is running; a failed lookup keeps the current release.
+   */
   readonly runnerVersion: string
   /** Prefix for runner names; the slot index is appended (e.g. "my-laptop-0"). Defaults to hostname. */
   readonly namePrefix: string
